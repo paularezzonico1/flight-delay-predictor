@@ -47,3 +47,9 @@ class PredictionResponse(BaseModel):
     model_version: str
     latency_ms: float
     warnings: list[str] = Field(default_factory=list)
+
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    model_loaded: bool

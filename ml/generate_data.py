@@ -93,3 +93,14 @@ def load_real(csv_path: str) -> pd.DataFrame:
             if n in cols:
                 return cols[n]
         raise KeyError(f"None of {names} found in {list(df.columns)}")
+
+    out = pd.DataFrame(
+        {
+            "airline": df[pick("OP_UNIQUE_CARRIER", "OP_CARRIER", "CARRIER")],
+            "origin": df[pick("ORIGIN")],
+            "destination": df[pick("DEST", "DESTINATION")],
+            "month": df[pick("MONTH")].astype(int),
+            "day_of_week": df[pick("DAY_OF_WEEK")].astype(int),
+            "dep_hour": (df[pick("CRS_DEP_TIME", "DEP_TIME")].fillna(0).astype(int) // 100),
+        }
+    )

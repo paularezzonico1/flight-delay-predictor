@@ -83,3 +83,10 @@ def tune(X_train, y_train) -> dict:
     search.fit(X_train, y_train)
     logger.info("Best params: %s (roc_auc=%.4f)", search.best_params_, search.best_score_)
     return {k.replace("clf__", ""): v for k, v in search.best_params_.items()}
+
+
+def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
+    """Compute offline metrics plus warm single-prediction latency."""
+    proba = pipe.predict_proba(X_test)[:, 1]
+    preds = (proba >= 0.5).astype(int)
+    metrics = {}

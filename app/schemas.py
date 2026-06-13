@@ -21,3 +21,19 @@ class FlightRequest(BaseModel):
         if not v:
             raise ValueError("must not be empty")
         return v
+
+    @field_validator("destination")
+    @classmethod
+    def _no_same_airport(cls, v: str, info) -> str:
+        if info.data.get("origin") == v:
+            raise ValueError("origin and destination must differ")
+        return v
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "airline": "B6", "origin": "JFK", "destination": "SFO",
+                "month": 7, "day_of_week": 5, "dep_hour": 18,
+            }
+        }
+    }

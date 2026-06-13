@@ -62,3 +62,5 @@ def build_pipeline(scale_pos_weight: float) -> Pipeline:
             ("num", "passthrough", NUMERIC),
         ]
     )
+    clf = XGBClassifier(scale_pos_weight=scale_pos_weight, **DEFAULT_PARAMS)
+    return Pipeline([("preprocess", preprocess), ("clf", clf)])

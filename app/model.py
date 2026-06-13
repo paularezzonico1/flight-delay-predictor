@@ -38,3 +38,15 @@ class DelayModel:
             with open(settings.metrics_path) as fh:
                 self._metadata = json.load(fh)
         logger.info("Model loaded from %s in %.1f ms", path, (time.perf_counter() - t0) * 1000)
+
+    @property
+    def loaded(self) -> bool:
+        return self._pipeline is not None
+
+    @property
+    def metadata(self) -> dict:
+        return self._metadata
+
+    @property
+    def version(self) -> str:
+        return self._metadata.get("trained_at", "unknown")

@@ -163,3 +163,12 @@ def top_delay_routes(df: pd.DataFrame, n: int = 5) -> pd.Series:
     """Return the n most delay-prone origin-destination routes."""
     routes = df.assign(route=df.origin + "-" + df.destination)
     return routes.groupby("route").delayed.mean().sort_values(ascending=False).head(n)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    frame = load_dataset()
+    print(frame.head())
+    print(f"\nRows: {len(frame):,}  Delay rate: {frame.delayed.mean():.3f}")
+    print("\nTop delay-prone routes:")
+    print(top_delay_routes(frame))

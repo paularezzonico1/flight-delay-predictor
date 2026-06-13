@@ -17,3 +17,12 @@ COPY ml/ ./ml/
 # Train at build time so the image ships ready-to-serve. Mount a real BTS CSV
 # at /build/data/flights.csv to train on real data instead of synthetic.
 RUN python -m ml.train
+
+# ---- Stage 2: slim runtime ----
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    FDP_MODEL_PATH=/app/models/model.pkl \
+    FDP_METRICS_PATH=/app/models/metrics.json
+WORKDIR /app

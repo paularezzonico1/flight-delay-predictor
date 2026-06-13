@@ -99,3 +99,22 @@ async def health():
             model_loaded=loaded,
         ).model_dump(),
     )
+
+
+@app.get("/stats", response_model=StatsResponse, tags=["ops"])
+async def stats():
+    """Model metadata and offline evaluation metrics."""
+    md = model.metadata
+    if not md:
+        return JSONResponse(status_code=503, content={"detail": "Metrics unavailable."})
+    return StatsResponse(
+        model_type=md.get("model_type", "unknown"),
+        target=md.get("target", "departure delay > 15 min"),
+        features=md.get("features", []),
+        trained_at=md.get("trained_at"),
+        n_train=md.get("n_train"),
+        n_test=md.get("n_test"),
+        metrics=md.get("metrics", {}),
+        known_airlines=md.get("known_airlines", []),
+        known_airports=md.get("known_airports", []),
+    )

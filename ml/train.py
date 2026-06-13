@@ -91,3 +91,4 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
     preds = (proba >= 0.5).astype(int)
     metrics = {}
     metrics["accuracy"] = round(accuracy_score(y_test, preds), 4)
+    metrics["precision"] = round(precision_score(y_test, preds, zero_division=0), 4)

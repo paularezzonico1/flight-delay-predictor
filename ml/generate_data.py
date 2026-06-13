@@ -53,3 +53,14 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
     months = rng.integers(1, 13, size=n)
     days_of_week = rng.integers(1, 8, size=n)
     dep_hours = rng.integers(0, 24, size=n)
+
+    base = 0.10  # baseline delay rate
+    prob = (
+        base
+        + np.array([AIRLINES[a] for a in airlines])
+        + np.array([AIRPORTS[o] for o in origins])
+        + np.array([AIRPORTS[d] for d in dests]) * 0.4
+        + np.array([_hour_effect(h) for h in dep_hours])
+        + np.array([_month_effect(m) for m in months])
+        + np.array([_dow_effect(d) for d in days_of_week])
+    )

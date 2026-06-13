@@ -15,3 +15,7 @@ from constants import FEATURES
 from utils import risk_level
 
 logger = logging.getLogger(__name__)
+
+
+class ModelNotLoadedError(RuntimeError):
+    """Raised when a prediction is attempted before the model is available."""

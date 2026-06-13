@@ -54,18 +54,27 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
     days_of_week = rng.integers(1, 8, size=n)
     dep_hours = rng.integers(0, 24, size=n)
 
-    base = 0.10  # baseline delay rate
-    prob = (
-        base
-        + np.array([AIRLINES[a] for a in airlines])
-        + np.array([AIRPORTS[o] for o in origins])
-        + np.array([AIRPORTS[d] for d in dests]) * 0.4
-        + np.array([_hour_effect(h) for h in dep_hours])
-        + np.array([_month_effect(m) for m in months])
-        + np.array([_dow_effect(d) for d in days_of_week])
-    )
+    # Combine effects on the logit scale: this yields a realistic (~20%) delay
+    # rate with enough separability for the model to learn, while a modest noise
+    # term keeps the problem from being perfectly predictable.
+    airline_e = np.array([AIRLINES[a] for a in airlines])
+    origin_e = np.array([AIRPORTS[o] for o in origins])
+    dest_e = np.array([AIRPORTS[d] for d in dests])
+    hour_e = np.array([_hour_effect(h) for h in dep_hours])
+    month_e = np.array([_month_effect(m) for m in months])
+    dow_e = np.array([_dow_effect(d) for d in days_of_week])
 
-    prob = np.clip(prob + rng.normal(0, 0.04, size=n), 0.01, 0.95)
+    z = (
+        -2.4
+        + 20.0 * (airline_e - 0.18)
+        + 16.0 * (origin_e - 0.045)
+        + 7.0 * (dest_e - 0.045)
+        + 14.0 * (hour_e - 0.09)
+        + 18.0 * month_e
+        + 14.0 * dow_e
+        + rng.normal(0, 0.2, size=n)
+    )
+    prob = 1.0 / (1.0 + np.exp(-z))
     delayed = (rng.random(n) < prob).astype(int)
 
     df = pd.DataFrame(

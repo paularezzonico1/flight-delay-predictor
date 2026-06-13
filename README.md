@@ -87,9 +87,10 @@ PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.
 - **Throughput / scaling:** two uvicorn workers per container; the ASG adds
   instances on average CPU > 50% or > 1000 requests/target.
 - **Model quality:** reported live by `GET /stats`. On the bundled synthetic
-  dataset the model reaches roughly ROC-AUC ~0.70–0.75 (illustrative). Train on
-  the real BTS CSV (`data/flights.csv`) for production-representative numbers,
-  then read the exact metrics from `/stats` or `models/metrics.json`.
+  dataset (≈23% delay rate) the model reaches roughly ROC-AUC ~0.80, accuracy
+  ~0.72, F1 ~0.55 (illustrative). Train on the real BTS CSV
+  (`data/flights.csv`) for production-representative numbers, then read the exact
+  metrics from `/stats` or `models/metrics.json`.
 
 > Note: the bundled dataset is synthetic so the project runs out of the box.
 > The numbers above are not real BTS performance — drop a BTS CSV in `data/` and

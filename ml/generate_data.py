@@ -81,3 +81,15 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
     )
     logger.info("Generated %d synthetic flights, delay rate %.3f", n, df.delayed.mean())
     return df
+
+
+def load_real(csv_path: str) -> pd.DataFrame:
+    """Map a BTS On-Time Performance CSV into our schema."""
+    df = pd.read_csv(csv_path)
+    cols = {c.upper(): c for c in df.columns}
+
+    def pick(*names):
+        for n in names:
+            if n in cols:
+                return cols[n]
+        raise KeyError(f"None of {names} found in {list(df.columns)}")

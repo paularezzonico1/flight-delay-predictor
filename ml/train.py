@@ -144,3 +144,19 @@ def main() -> None:
         pipe.named_steps["clf"].set_params(**tune(X_train, y_train))
     logger.info("Fitting XGBoost pipeline...")
     pipe.fit(X_train, y_train)
+
+    metrics = evaluate(pipe, X_test, y_test)
+    logger.info("Evaluation: %s", json.dumps(metrics))
+    metadata = {
+        "model_type": "XGBClassifier",
+        "target": "departure delay > 15 min",
+        "features": FEATURES,
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "n_train": int(len(X_train)),
+        "n_test": int(len(X_test)),
+        "train_delay_rate": round(float(y_train.mean()), 4),
+        "known_airlines": sorted(df.airline.unique().tolist()),
+        "known_airports": sorted(set(df.origin.unique()) | set(df.destination.unique())),
+        "metrics": metrics,
+        "top_features": feature_importance(pipe),
+    }

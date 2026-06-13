@@ -33,3 +33,8 @@ def _month_effect(month: int) -> float:
     summer = 0.06 if month in (6, 7, 8) else 0.0
     winter = 0.05 if month == 12 else 0.0
     return summer + winter
+
+
+def _dow_effect(dow: int) -> float:
+    """Thursday/Friday/Sunday peaks (1=Mon ... 7=Sun)."""
+    return {4: 0.02, 5: 0.03, 7: 0.025}.get(dow, 0.0)

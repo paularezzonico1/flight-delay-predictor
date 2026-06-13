@@ -53,3 +53,15 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     model_loaded: bool
+
+
+class StatsResponse(BaseModel):
+    model_type: str
+    target: str
+    features: list[str]
+    trained_at: Optional[str] = None
+    n_train: Optional[int] = None
+    n_test: Optional[int] = None
+    metrics: dict
+    known_airlines: list[str] = Field(default_factory=list)
+    known_airports: list[str] = Field(default_factory=list)

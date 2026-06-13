@@ -32,3 +32,11 @@ async def lifespan(app: FastAPI):
         # Don't crash — /health reports not-ready so the LB drains this instance.
         logger.error("Startup: %s", exc)
     yield
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.version,
+    description="Predicts the probability that a US domestic flight departs >15 min late.",
+    lifespan=lifespan,
+)

@@ -110,3 +110,16 @@ def load_real(csv_path: str) -> pd.DataFrame:
     out = out.dropna()
     logger.info("Loaded %d real flights from %s", len(out), csv_path)
     return out
+
+
+def load_dataset(csv_path: str = "data/flights.csv", n_synthetic: int = 200_000) -> pd.DataFrame:
+    if os.path.exists(csv_path):
+        logger.info("Using real dataset at %s", csv_path)
+        df = load_real(csv_path)
+    else:
+        logger.warning("No dataset at %s — falling back to synthetic data.", csv_path)
+        df = generate_synthetic(n=n_synthetic)
+    df = df.drop_duplicates().reset_index(drop=True)
+    _validate_schema(df)
+    log_summary(df)
+    return df

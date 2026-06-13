@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Flight Delay Predictor — Application Load Balancer + EC2 Auto Scaling Group
+  running the Dockerized FastAPI service, pulled from ECR.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to deploy into.
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two or more public subnets across AZs (for the ALB and ASG).
+  EcrImageUri:
+    Type: String
+    Description: Full ECR image URI, e.g. 1234.dkr.ecr.us-east-1.amazonaws.com/fdp:latest
+  InstanceType:
+    Type: String
+    Default: t3.small
+  MinSize:
+    Type: Number
+    Default: 2
+  MaxSize:
+    Type: Number
+    Default: 6
+  DesiredCapacity:
+    Type: Number
+    Default: 2
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64

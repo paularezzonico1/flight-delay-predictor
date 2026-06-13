@@ -92,31 +92,69 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
     return df
 
 
+def _parse_dates(s: pd.Series) -> pd.Series:
+    """Parse BTS flight dates, trying common explicit formats before inferring."""
+    for fmt in ("%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d", "%m/%d/%Y"):
+        try:
+            return pd.to_datetime(s, format=fmt)
+        except (ValueError, TypeError):
+            continue
+    return pd.to_datetime(s)
+
+
 def load_real(csv_path: str) -> pd.DataFrame:
-    """Map a BTS On-Time Performance CSV into our schema."""
+    """Map a BTS On-Time Performance CSV into our schema.
+
+    Handles the two common public layouts:
+      * raw delay minutes (DEP_DELAY) with explicit MONTH / DAY_OF_WEEK, and
+      * a pre-computed DEP_DEL15 indicator with only FL_DATE (month and
+        day_of_week are then derived from the date).
+    Cancelled / unscheduled rows (no departure, hence no label) are dropped.
+    """
     df = pd.read_csv(csv_path)
     cols = {c.upper(): c for c in df.columns}
 
-    def pick(*names):
+    def pick(*names, required=True):
         for n in names:
             if n in cols:
                 return cols[n]
-        raise KeyError(f"None of {names} found in {list(df.columns)}")
+        if required:
+            raise KeyError(f"None of {names} found in {list(df.columns)}")
+        return None
 
     out = pd.DataFrame(
         {
             "airline": df[pick("OP_UNIQUE_CARRIER", "OP_CARRIER", "CARRIER")],
             "origin": df[pick("ORIGIN")],
             "destination": df[pick("DEST", "DESTINATION")],
-            "month": df[pick("MONTH")].astype(int),
-            "day_of_week": df[pick("DAY_OF_WEEK")].astype(int),
             "dep_hour": (df[pick("CRS_DEP_TIME", "DEP_TIME")].fillna(0).astype(int) // 100),
         }
     )
 
-    dep_delay = df[pick("DEP_DELAY", "DEP_DELAY_NEW")].fillna(0)
-    out["delayed"] = (dep_delay > TARGET_THRESHOLD_MIN).astype(int)
-    out = out.dropna()
+    # Month / day-of-week: use explicit columns when present, else derive them
+    # from the flight date (pandas dayofweek is 0=Mon, we want 1=Mon..7=Sun).
+    month_col, dow_col = pick("MONTH", required=False), pick("DAY_OF_WEEK", required=False)
+    if month_col and dow_col:
+        out["month"] = df[month_col].astype(int)
+        out["day_of_week"] = df[dow_col].astype(int)
+    else:
+        dates = _parse_dates(df[pick("FL_DATE", "FLIGHTDATE", "FL_DATE_TIME")])
+        out["month"] = dates.dt.month.astype(int)
+        out["day_of_week"] = (dates.dt.dayofweek + 1).astype(int)
+
+    # Label: prefer the pre-computed >15-min indicator, else derive from minutes.
+    del15_col = pick("DEP_DEL15", required=False)
+    if del15_col is not None:
+        out["delayed"] = df[del15_col]
+    else:
+        out["delayed"] = (df[pick("DEP_DELAY", "DEP_DELAY_NEW")] > TARGET_THRESHOLD_MIN).astype(float)
+
+    cancelled_col = pick("CANCELLED", required=False)
+    if cancelled_col is not None:
+        out = out[df[cancelled_col].fillna(0) == 0]
+    out = out.dropna(subset=["delayed"])
+    out["delayed"] = out["delayed"].astype(int)
+    out = out.dropna().reset_index(drop=True)
     logger.info("Loaded %d real flights from %s", len(out), csv_path)
     return out
 
@@ -128,7 +166,9 @@ def load_dataset(csv_path: str = "data/flights.csv", n_synthetic: int = 200_000)
     else:
         logger.warning("No dataset at %s — falling back to synthetic data.", csv_path)
         df = generate_synthetic(n=n_synthetic)
-    df = df.drop_duplicates().reset_index(drop=True)
+    # Note: do NOT drop duplicates — distinct flights legitimately share the same
+    # carrier/route/schedule features, and their frequency carries the signal.
+    df = df.reset_index(drop=True)
     _validate_schema(df)
     log_summary(df)
     return df

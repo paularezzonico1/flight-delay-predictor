@@ -80,21 +80,37 @@ PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.
 ## Performance
 
 - **Latency:** the XGBoost pipeline is loaded once at process start and served
-  warm and in-process. Single-prediction latency is ~1–5 ms locally
+  warm and in-process. Single-prediction latency is ~1–3 ms locally
   (`metrics.single_predict_latency_ms` in `GET /stats`), comfortably inside the
   sub-100 ms response-time target end-to-end. Each response carries an
   `x-process-time-ms` header for observability.
 - **Throughput / scaling:** two uvicorn workers per container; the ASG adds
   instances on average CPU > 50% or > 1000 requests/target.
-- **Model quality:** reported live by `GET /stats`. On the bundled synthetic
-  dataset (≈23% delay rate) the model reaches roughly ROC-AUC ~0.80, accuracy
-  ~0.72, F1 ~0.55 (illustrative). Train on the real BTS CSV
-  (`data/flights.csv`) for production-representative numbers, then read the exact
-  metrics from `/stats` or `models/metrics.json`.
+- **Model quality:** trained on **real US DOT / BTS On-Time Performance data for
+  January 2023** — 528,542 flights, 21.1% departure-delay rate. Held-out 20%
+  test split (metrics also served live at `GET /stats`):
 
-> Note: the bundled dataset is synthetic so the project runs out of the box.
-> The numbers above are not real BTS performance — drop a BTS CSV in `data/` and
-> retrain to get genuine metrics.
+  | Metric | Value |
+  |--------|-------|
+  | ROC-AUC | 0.686 |
+  | PR-AUC | 0.364 |
+  | Accuracy | 0.619 |
+  | Precision | 0.310 |
+  | Recall | 0.659 |
+  | F1 | 0.422 |
+  | Brier score | 0.223 |
+
+  These reflect the genuine difficulty of predicting delays from schedule
+  features alone (carrier, route, month, day-of-week, departure hour) without
+  weather or upstream/network signals. Recall is favoured over precision via
+  `scale_pos_weight` so most real delays are flagged. The model recovers
+  sensible structure — the worst carriers (Frontier, Spirit, JetBlue) and the
+  evening-departure delay peak match published BTS patterns.
+
+> Note: this snapshot is January 2023 only, so the `month` feature is constant
+> in training and carries no signal here; add more months of BTS data to use it.
+> A synthetic-data fallback (`ml/generate_data.py`) lets the project run end-to-end
+> with no CSV present.
 
 ## Run locally
 

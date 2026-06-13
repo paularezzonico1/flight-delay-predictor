@@ -161,3 +161,7 @@ def main() -> None:
         "top_features": feature_importance(pipe),
     }
     save_artifacts(pipe, metadata)
+
+
+if __name__ == "__main__":
+    main()

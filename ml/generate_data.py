@@ -123,3 +123,17 @@ def load_dataset(csv_path: str = "data/flights.csv", n_synthetic: int = 200_000)
     _validate_schema(df)
     log_summary(df)
     return df
+
+
+def _validate_schema(df: pd.DataFrame) -> None:
+    """Fail fast if a loaded dataset is missing columns or out of range."""
+    required = {"airline", "origin", "destination", "month", "day_of_week", "dep_hour", "delayed"}
+    missing = required - set(df.columns)
+    if missing:
+        raise ValueError(f"Dataset missing columns: {sorted(missing)}")
+    if not df.month.between(1, 12).all():
+        raise ValueError("month out of range 1-12")
+    if not df.day_of_week.between(1, 7).all():
+        raise ValueError("day_of_week out of range 1-7")
+    if not df.dep_hour.between(0, 23).all():
+        raise ValueError("dep_hour out of range 0-23")

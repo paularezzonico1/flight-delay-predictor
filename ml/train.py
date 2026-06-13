@@ -138,3 +138,9 @@ def main() -> None:
     neg = int(len(y_train) - pos)
     scale_pos_weight = neg / max(pos, 1)
     logger.info("Train rows: %d (pos=%d neg=%d, spw=%.2f)", len(X_train), pos, neg, scale_pos_weight)
+
+    pipe = build_pipeline(scale_pos_weight)
+    if os.environ.get("TUNE") == "1":
+        pipe.named_steps["clf"].set_params(**tune(X_train, y_train))
+    logger.info("Fitting XGBoost pipeline...")
+    pipe.fit(X_train, y_train)

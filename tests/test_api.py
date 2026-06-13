@@ -54,3 +54,15 @@ def test_stats(client):
     assert body["model_type"] == "XGBClassifier"
     assert "roc_auc" in body["metrics"]
     assert len(body["known_airlines"]) > 0
+
+
+def test_predict_ok(client):
+    r = client.post("/predict", json={
+        "airline": "B6", "origin": "JFK", "destination": "SFO",
+        "month": 7, "day_of_week": 5, "dep_hour": 18,
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert 0.0 <= body["delay_probability"] <= 1.0
+    assert body["risk_level"] in {"low", "moderate", "high"}
+    assert isinstance(body["will_be_delayed"], bool)

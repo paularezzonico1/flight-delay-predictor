@@ -40,3 +40,33 @@ app = FastAPI(
     description="Predicts the probability that a US domestic flight departs >15 min late.",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def access_log(request: Request, call_next):
+    request_id = request.headers.get("x-request-id", uuid.uuid4().hex[:12])
+    request.state.request_id = request_id
+    t0 = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.exception(
+            "Unhandled error",
+            extra={"request_id": request_id, "path": request.url.path,
+                   "method": request.method, "latency_ms": round(latency_ms, 2)},
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "request_id": request_id},
+        )
+    latency_ms = (time.perf_counter() - t0) * 1000
+    response.headers["x-request-id"] = request_id
+    response.headers["x-process-time-ms"] = f"{latency_ms:.2f}"
+    logger.info(
+        "request",
+        extra={"request_id": request_id, "path": request.url.path,
+               "method": request.method, "status_code": response.status_code,
+               "latency_ms": round(latency_ms, 2)},
+    )
+    return response

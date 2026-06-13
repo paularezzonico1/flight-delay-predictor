@@ -118,3 +118,9 @@ async def stats():
         known_airlines=md.get("known_airlines", []),
         known_airports=md.get("known_airports", []),
     )
+
+
+@app.post("/predict", response_model=PredictionResponse, tags=["inference"])
+async def predict(flight: FlightRequest):
+    """Return the delay probability for a single flight."""
+    return PredictionResponse(**model.predict(flight))

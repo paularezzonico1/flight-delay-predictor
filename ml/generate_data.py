@@ -49,3 +49,7 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
     # No flight from an airport to itself.
     same = origins == dests
     dests[same] = rng.choice(list(AIRPORTS), size=int(same.sum()))
+
+    months = rng.integers(1, 13, size=n)
+    days_of_week = rng.integers(1, 8, size=n)
+    dep_hours = rng.integers(0, 24, size=n)

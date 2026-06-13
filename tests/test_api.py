@@ -39,3 +39,9 @@ def client(_trained_model):
 
     with TestClient(app) as c:
         yield c
+
+
+def test_health(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json()["model_loaded"] is True

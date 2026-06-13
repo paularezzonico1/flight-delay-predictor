@@ -184,3 +184,16 @@ Resources:
             - LbFull: !GetAtt LoadBalancer.LoadBalancerFullName
               TgFull: !GetAtt TargetGroup.TargetGroupFullName
         TargetValue: 1000.0
+
+Outputs:
+  ApiUrl:
+    Description: Public endpoint for the API.
+    Value: !Sub "http://${LoadBalancer.DNSName}"
+  TargetGroupArn:
+    Value: !Ref TargetGroup
+  LoadBalancerFullName:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
+  TargetGroupFullName:
+    Value: !GetAtt TargetGroup.TargetGroupFullName
+  AutoScalingGroupName:
+    Value: !Ref AutoScalingGroup

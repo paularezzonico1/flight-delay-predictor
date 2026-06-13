@@ -137,3 +137,14 @@ def _validate_schema(df: pd.DataFrame) -> None:
         raise ValueError("day_of_week out of range 1-7")
     if not df.dep_hour.between(0, 23).all():
         raise ValueError("dep_hour out of range 0-23")
+
+
+def dep_hour_bucket(hour: int) -> str:
+    """Coarse daypart label for exploratory summaries."""
+    if hour < 6:
+        return "night"
+    if hour < 12:
+        return "morning"
+    if hour < 18:
+        return "afternoon"
+    return "evening"

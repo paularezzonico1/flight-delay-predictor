@@ -170,3 +170,17 @@ Resources:
         PredefinedMetricSpecification:
           PredefinedMetricType: ASGAverageCPUUtilization
         TargetValue: 50.0
+
+  RequestScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ALBRequestCountPerTarget
+          ResourceLabel: !Sub
+            - "${LbFull}/${TgFull}"
+            - LbFull: !GetAtt LoadBalancer.LoadBalancerFullName
+              TgFull: !GetAtt TargetGroup.TargetGroupFullName
+        TargetValue: 1000.0

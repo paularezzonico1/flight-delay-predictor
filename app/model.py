@@ -19,3 +19,22 @@ logger = logging.getLogger(__name__)
 
 class ModelNotLoadedError(RuntimeError):
     """Raised when a prediction is attempted before the model is available."""
+
+
+class DelayModel:
+    def __init__(self) -> None:
+        self._pipeline = None
+        self._metadata: dict = {}
+
+    def load(self) -> None:
+        path = settings.model_path
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"Model not found at {path!r}. Run `python -m ml.train` first."
+            )
+        t0 = time.perf_counter()
+        self._pipeline = joblib.load(path)
+        if os.path.exists(settings.metrics_path):
+            with open(settings.metrics_path) as fh:
+                self._metadata = json.load(fh)
+        logger.info("Model loaded from %s in %.1f ms", path, (time.perf_counter() - t0) * 1000)

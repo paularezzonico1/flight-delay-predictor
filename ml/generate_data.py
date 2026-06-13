@@ -104,3 +104,9 @@ def load_real(csv_path: str) -> pd.DataFrame:
             "dep_hour": (df[pick("CRS_DEP_TIME", "DEP_TIME")].fillna(0).astype(int) // 100),
         }
     )
+
+    dep_delay = df[pick("DEP_DELAY", "DEP_DELAY_NEW")].fillna(0)
+    out["delayed"] = (dep_delay > TARGET_THRESHOLD_MIN).astype(int)
+    out = out.dropna()
+    logger.info("Loaded %d real flights from %s", len(out), csv_path)
+    return out

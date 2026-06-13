@@ -91,3 +91,7 @@ class DelayModel:
             "latency_ms": round(latency_ms, 3),
             "warnings": warnings,
         }
+
+
+# Module-level singleton shared across requests.
+model = DelayModel()

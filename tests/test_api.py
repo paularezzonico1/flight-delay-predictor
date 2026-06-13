@@ -66,3 +66,27 @@ def test_predict_ok(client):
     assert 0.0 <= body["delay_probability"] <= 1.0
     assert body["risk_level"] in {"low", "moderate", "high"}
     assert isinstance(body["will_be_delayed"], bool)
+
+
+def test_predict_lowercase_is_normalized(client):
+    r = client.post("/predict", json={
+        "airline": "aa", "origin": "atl", "destination": "lax",
+        "month": 1, "day_of_week": 2, "dep_hour": 6,
+    })
+    assert r.status_code == 200
+
+
+def test_predict_same_airport_rejected(client):
+    r = client.post("/predict", json={
+        "airline": "AA", "origin": "JFK", "destination": "JFK",
+        "month": 7, "day_of_week": 5, "dep_hour": 18,
+    })
+    assert r.status_code == 422
+
+
+def test_predict_out_of_range_rejected(client):
+    r = client.post("/predict", json={
+        "airline": "AA", "origin": "JFK", "destination": "LAX",
+        "month": 13, "day_of_week": 5, "dep_hour": 18,
+    })
+    assert r.status_code == 422

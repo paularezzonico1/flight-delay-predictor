@@ -53,3 +53,12 @@ DEFAULT_PARAMS = dict(
     n_jobs=-1,
     random_state=42,
 )
+
+
+def build_pipeline(scale_pos_weight: float) -> Pipeline:
+    preprocess = ColumnTransformer(
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL),
+            ("num", "passthrough", NUMERIC),
+        ]
+    )

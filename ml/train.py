@@ -124,3 +124,12 @@ def save_artifacts(pipe: Pipeline, metadata: dict) -> None:
     size_kb = os.path.getsize(MODEL_PATH) / 1024
     logger.info("Saved model -> %s (%.1f KB)", MODEL_PATH, size_kb)
     logger.info("Saved metrics -> %s", METRICS_PATH)
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    df = load_dataset()
+    X, y = df[FEATURES], df[TARGET]
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
+    )

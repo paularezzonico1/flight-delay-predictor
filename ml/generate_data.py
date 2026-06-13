@@ -21,3 +21,8 @@ from constants import AIRLINES, AIRPORTS, TARGET_THRESHOLD_MIN
 from utils import normalize
 
 logger = logging.getLogger(__name__)
+
+
+def _hour_effect(hour: int) -> float:
+    """Delays build through the day; early morning is cleanest."""
+    return float(np.clip((hour - 5) * 0.012, 0.0, 0.18))

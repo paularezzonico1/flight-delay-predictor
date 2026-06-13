@@ -13,3 +13,11 @@ class FlightRequest(BaseModel):
     month: int = Field(..., ge=1, le=12, examples=[7])
     day_of_week: int = Field(..., ge=1, le=7, description="1=Mon .. 7=Sun", examples=[5])
     dep_hour: int = Field(..., ge=0, le=23, description="Scheduled departure hour, 0-23", examples=[18])
+
+    @field_validator("airline", "origin", "destination")
+    @classmethod
+    def _upper(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not v:
+            raise ValueError("must not be empty")
+        return v

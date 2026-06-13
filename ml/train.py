@@ -93,3 +93,4 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
     metrics["accuracy"] = round(accuracy_score(y_test, preds), 4)
     metrics["precision"] = round(precision_score(y_test, preds, zero_division=0), 4)
     metrics["recall"] = round(recall_score(y_test, preds, zero_division=0), 4)
+    metrics["f1"] = round(f1_score(y_test, preds, zero_division=0), 4)

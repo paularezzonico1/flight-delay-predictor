@@ -35,3 +35,9 @@ from xgboost import XGBClassifier
 
 from constants import CATEGORICAL, FEATURES, NUMERIC, TARGET
 from ml.generate_data import load_dataset
+
+logger = logging.getLogger(__name__)
+
+MODEL_DIR = os.environ.get("MODEL_DIR", "models")
+MODEL_PATH = os.path.join(MODEL_DIR, "model.pkl")
+METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")

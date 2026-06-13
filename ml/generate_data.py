@@ -38,3 +38,14 @@ def _month_effect(month: int) -> float:
 def _dow_effect(dow: int) -> float:
     """Thursday/Friday/Sunday peaks (1=Mon ... 7=Sun)."""
     return {4: 0.02, 5: 0.03, 7: 0.025}.get(dow, 0.0)
+
+
+def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+
+    airlines = rng.choice(list(AIRLINES), size=n, p=normalize(AIRLINES.values()))
+    origins = rng.choice(list(AIRPORTS), size=n)
+    dests = rng.choice(list(AIRPORTS), size=n)
+    # No flight from an airport to itself.
+    same = origins == dests
+    dests[same] = rng.choice(list(AIRPORTS), size=int(same.sum()))

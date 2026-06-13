@@ -124,3 +124,8 @@ async def stats():
 async def predict(flight: FlightRequest):
     """Return the delay probability for a single flight."""
     return PredictionResponse(**model.predict(flight))
+
+
+@app.get("/", tags=["ops"])
+async def root():
+    return {"service": settings.app_name, "version": settings.version, "docs": "/docs"}

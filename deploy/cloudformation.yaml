@@ -104,3 +104,37 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile: { Arn: !GetAtt InstanceProfile.Arn }
+        SecurityGroupIds: [!Ref InstanceSecurityGroup]
+        MetadataOptions: { HttpTokens: required }  # enforce IMDSv2
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -euo pipefail
+            dnf update -y
+            dnf install -y docker
+            systemctl enable --now docker
+
+            REGION="${AWS::Region}"
+            IMAGE="${EcrImageUri}"
+            REGISTRY="$(echo "$IMAGE" | cut -d/ -f1)"
+
+            aws ecr get-login-password --region "$REGION" \
+              | docker login --username AWS --password-stdin "$REGISTRY"
+
+            docker pull "$IMAGE"
+            docker run -d --restart always --name fdp \
+              -p 8000:8000 \
+              -e FDP_LOG_LEVEL=INFO \
+              --log-driver=awslogs \
+              --log-opt awslogs-region="$REGION" \
+              --log-opt awslogs-group=/fdp/api \
+              --log-opt awslogs-create-group=true \
+              "$IMAGE"

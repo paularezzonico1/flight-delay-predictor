@@ -45,3 +45,12 @@ def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["model_loaded"] is True
+
+
+def test_stats(client):
+    r = client.get("/stats")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["model_type"] == "XGBClassifier"
+    assert "roc_auc" in body["metrics"]
+    assert len(body["known_airlines"]) > 0

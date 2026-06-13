@@ -67,3 +67,17 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
 
     prob = np.clip(prob + rng.normal(0, 0.04, size=n), 0.01, 0.95)
     delayed = (rng.random(n) < prob).astype(int)
+
+    df = pd.DataFrame(
+        {
+            "airline": airlines,
+            "origin": origins,
+            "destination": dests,
+            "month": months,
+            "day_of_week": days_of_week,
+            "dep_hour": dep_hours,
+            "delayed": delayed,
+        }
+    )
+    logger.info("Generated %d synthetic flights, delay rate %.3f", n, df.delayed.mean())
+    return df

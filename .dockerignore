@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.git/
+.gitignore
+.venv/
+venv/
+tests/
+data/
+*.md
+.env
+.DS_Store
+build_part*.sh

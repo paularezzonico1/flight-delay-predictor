@@ -63,3 +63,31 @@ class DelayModel:
         if airports and flight.destination not in airports:
             warnings.append(f"Unknown destination '{flight.destination}'; prediction may be unreliable.")
         return warnings
+
+    def predict(self, flight: FlightRequest) -> dict:
+        if not self.loaded:
+            raise ModelNotLoadedError("Model is not loaded.")
+
+        warnings = self._validate_known(flight)
+        row = pd.DataFrame(
+            [[
+                flight.airline, flight.origin, flight.destination,
+                flight.month, flight.day_of_week, flight.dep_hour,
+            ]],
+            columns=FEATURES,
+        )
+
+        t0 = time.perf_counter()
+        proba = float(self._pipeline.predict_proba(row)[0, 1])
+        latency_ms = (time.perf_counter() - t0) * 1000
+
+        threshold = settings.decision_threshold
+        return {
+            "delay_probability": round(proba, 4),
+            "will_be_delayed": proba >= threshold,
+            "threshold": threshold,
+            "risk_level": risk_level(proba),
+            "model_version": self.version,
+            "latency_ms": round(latency_ms, 3),
+            "warnings": warnings,
+        }

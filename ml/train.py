@@ -97,3 +97,10 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
     metrics["roc_auc"] = round(roc_auc_score(y_test, proba), 4)
     metrics["pr_auc"] = round(average_precision_score(y_test, proba), 4)
     metrics["brier_score"] = round(brier_score_loss(y_test, proba), 4)
+
+    sample = X_test.iloc[:1]
+    pipe.predict_proba(sample)  # warm-up
+    t0 = time.perf_counter()
+    for _ in range(100):
+        pipe.predict_proba(sample)
+    metrics["single_predict_latency_ms"] = round((time.perf_counter() - t0) / 100 * 1000, 3)

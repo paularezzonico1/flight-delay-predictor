@@ -36,3 +36,29 @@ docker build --platform linux/amd64 -t "$IMAGE_URI" .
 
 echo "==> Pushing image"
 docker push "$IMAGE_URI"
+
+echo "==> Deploying CloudFormation stack"
+aws cloudformation deploy \
+  --region "$AWS_REGION" \
+  --stack-name "$STACK_NAME" \
+  --template-file "$TEMPLATE" \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides \
+      VpcId="$VPC_ID" \
+      SubnetIds="$SUBNET_IDS" \
+      EcrImageUri="$IMAGE_URI" \
+  --no-fail-on-empty-changeset
+
+ASG_NAME="$(aws cloudformation describe-stacks --region "$AWS_REGION" --stack-name "$STACK_NAME" \
+  --query "Stacks[0].Outputs[?OutputKey=='AutoScalingGroupName'].OutputValue" --output text)"
+echo "==> Triggering instance refresh on ${ASG_NAME}"
+aws autoscaling start-instance-refresh --region "$AWS_REGION" \
+  --auto-scaling-group-name "$ASG_NAME" \
+  --preferences MinHealthyPercentage=50,InstanceWarmup=90 >/dev/null 2>&1 \
+  || echo "    (instance refresh skipped — fresh stack)"
+
+API_URL="$(aws cloudformation describe-stacks --region "$AWS_REGION" --stack-name "$STACK_NAME" \
+  --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)"
+echo ""
+echo "==> Deployed. API URL: ${API_URL}"
+echo "    Health: curl ${API_URL}/health   Docs: ${API_URL}/docs"

@@ -157,3 +157,9 @@ def log_summary(df: pd.DataFrame) -> None:
     logger.info("Worst airlines: %s", by_airline.head(3).round(3).to_dict())
     buckets = df.dep_hour.map(dep_hour_bucket)
     logger.info("Delay rate by daypart: %s", df.delayed.groupby(buckets).mean().round(3).to_dict())
+
+
+def top_delay_routes(df: pd.DataFrame, n: int = 5) -> pd.Series:
+    """Return the n most delay-prone origin-destination routes."""
+    routes = df.assign(route=df.origin + "-" + df.destination)
+    return routes.groupby("route").delayed.mean().sort_values(ascending=False).head(n)

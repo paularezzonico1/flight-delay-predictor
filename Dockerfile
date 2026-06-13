@@ -4,3 +4,7 @@ FROM python:3.11-slim AS builder
 
 ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libgomp1 \
+    && rm -rf /var/lib/apt/lists/*

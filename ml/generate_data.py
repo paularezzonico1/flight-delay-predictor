@@ -19,3 +19,5 @@ import pandas as pd
 
 from constants import AIRLINES, AIRPORTS, TARGET_THRESHOLD_MIN
 from utils import normalize
+
+logger = logging.getLogger(__name__)

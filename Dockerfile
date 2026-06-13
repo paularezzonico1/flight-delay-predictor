@@ -34,3 +34,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 curl \
 
 COPY --from=builder /install /usr/local
 COPY --from=builder /build/models/ ./models/
+
+COPY constants.py utils.py ./
+COPY app/ ./app/
+COPY ml/ ./ml/
+USER appuser

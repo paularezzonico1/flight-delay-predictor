@@ -114,3 +114,13 @@ def feature_importance(pipe: Pipeline, top_n: int = 15) -> list:
     importances = pipe.named_steps["clf"].feature_importances_
     ranked = sorted(zip(names, importances), key=lambda t: t[1], reverse=True)
     return [{"feature": n, "importance": round(float(i), 5)} for n, i in ranked[:top_n]]
+
+
+def save_artifacts(pipe: Pipeline, metadata: dict) -> None:
+    os.makedirs(MODEL_DIR, exist_ok=True)
+    joblib.dump(pipe, MODEL_PATH)
+    with open(METRICS_PATH, "w") as fh:
+        json.dump(metadata, fh, indent=2)
+    size_kb = os.path.getsize(MODEL_PATH) / 1024
+    logger.info("Saved model -> %s (%.1f KB)", MODEL_PATH, size_kb)
+    logger.info("Saved metrics -> %s", METRICS_PATH)

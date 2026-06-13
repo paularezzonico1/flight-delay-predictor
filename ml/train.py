@@ -41,3 +41,15 @@ logger = logging.getLogger(__name__)
 MODEL_DIR = os.environ.get("MODEL_DIR", "models")
 MODEL_PATH = os.path.join(MODEL_DIR, "model.pkl")
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.json")
+
+DEFAULT_PARAMS = dict(
+    n_estimators=300,
+    max_depth=6,
+    learning_rate=0.1,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    eval_metric="logloss",
+    tree_method="hist",
+    n_jobs=-1,
+    random_state=42,
+)

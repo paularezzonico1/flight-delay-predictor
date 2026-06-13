@@ -148,3 +148,12 @@ def dep_hour_bucket(hour: int) -> str:
     if hour < 18:
         return "afternoon"
     return "evening"
+
+
+def log_summary(df: pd.DataFrame) -> None:
+    """Log headline data-quality / distribution stats after loading."""
+    logger.info("Rows=%d delay_rate=%.3f", len(df), df.delayed.mean())
+    by_airline = df.groupby("airline").delayed.mean().sort_values(ascending=False)
+    logger.info("Worst airlines: %s", by_airline.head(3).round(3).to_dict())
+    buckets = df.dep_hour.map(dep_hour_bucket)
+    logger.info("Delay rate by daypart: %s", df.delayed.groupby(buckets).mean().round(3).to_dict())

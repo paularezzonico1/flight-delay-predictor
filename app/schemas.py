@@ -37,3 +37,13 @@ class FlightRequest(BaseModel):
             }
         }
     }
+
+
+class PredictionResponse(BaseModel):
+    delay_probability: float = Field(..., description="P(departure delay > 15 min), 0-1")
+    will_be_delayed: bool
+    threshold: float
+    risk_level: str = Field(..., description="low | moderate | high")
+    model_version: str
+    latency_ms: float
+    warnings: list[str] = Field(default_factory=list)

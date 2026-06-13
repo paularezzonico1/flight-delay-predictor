@@ -104,3 +104,4 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
     for _ in range(100):
         pipe.predict_proba(sample)
     metrics["single_predict_latency_ms"] = round((time.perf_counter() - t0) / 100 * 1000, 3)
+    return metrics

@@ -1,0 +1,10 @@
+services:
+  api:
+    build: .
+    image: flight-delay-predictor:latest
+    container_name: fdp-api
+    ports:
+      - "8000:8000"
+    environment:
+      FDP_LOG_LEVEL: INFO
+      FDP_DECISION_THRESHOLD: "0.5"

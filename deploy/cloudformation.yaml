@@ -94,3 +94,13 @@ Resources:
       Matcher: { HttpCode: "200" }
       TargetGroupAttributes:
         - { Key: deregistration_delay.timeout_seconds, Value: "20" }
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup

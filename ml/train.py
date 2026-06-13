@@ -133,3 +133,8 @@ def main() -> None:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
+
+    pos = int(y_train.sum())
+    neg = int(len(y_train) - pos)
+    scale_pos_weight = neg / max(pos, 1)
+    logger.info("Train rows: %d (pos=%d neg=%d, spw=%.2f)", len(X_train), pos, neg, scale_pos_weight)

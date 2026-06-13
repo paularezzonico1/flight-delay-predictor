@@ -64,3 +64,6 @@ def generate_synthetic(n: int = 200_000, seed: int = 42) -> pd.DataFrame:
         + np.array([_month_effect(m) for m in months])
         + np.array([_dow_effect(d) for d in days_of_week])
     )
+
+    prob = np.clip(prob + rng.normal(0, 0.04, size=n), 0.01, 0.95)
+    delayed = (rng.random(n) < prob).astype(int)

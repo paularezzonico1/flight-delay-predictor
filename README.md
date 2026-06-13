@@ -76,3 +76,21 @@ Returns `200` with `{"status":"ok","model_loaded":true}` when ready, else `503`
 ### `GET /stats`
 Model metadata and offline metrics (accuracy, precision, recall, F1, ROC-AUC,
 PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.
+
+## Performance
+
+- **Latency:** the XGBoost pipeline is loaded once at process start and served
+  warm and in-process. Single-prediction latency is ~1–5 ms locally
+  (`metrics.single_predict_latency_ms` in `GET /stats`), comfortably inside the
+  sub-100 ms response-time target end-to-end. Each response carries an
+  `x-process-time-ms` header for observability.
+- **Throughput / scaling:** two uvicorn workers per container; the ASG adds
+  instances on average CPU > 50% or > 1000 requests/target.
+- **Model quality:** reported live by `GET /stats`. On the bundled synthetic
+  dataset the model reaches roughly ROC-AUC ~0.70–0.75 (illustrative). Train on
+  the real BTS CSV (`data/flights.csv`) for production-representative numbers,
+  then read the exact metrics from `/stats` or `models/metrics.json`.
+
+> Note: the bundled dataset is synthetic so the project runs out of the box.
+> The numbers above are not real BTS performance — drop a BTS CSV in `data/` and
+> retrain to get genuine metrics.

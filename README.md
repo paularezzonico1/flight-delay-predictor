@@ -94,3 +94,56 @@ PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.
 > Note: the bundled dataset is synthetic so the project runs out of the box.
 > The numbers above are not real BTS performance — drop a BTS CSV in `data/` and
 > retrain to get genuine metrics.
+
+## Run locally
+
+### With Python
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m ml.train                      # writes models/model.pkl + metrics.json
+python -m uvicorn app.main:app --port 8000
+curl localhost:8000/health
+curl -X POST localhost:8000/predict -H 'content-type: application/json' \
+  -d '{"airline":"B6","origin":"JFK","destination":"SFO","month":7,"day_of_week":5,"dep_hour":18}'
+```
+Or use the Makefile: `make install && make train && make run`.
+
+### With Docker
+```bash
+docker compose up --build      # trains the model during the image build
+curl localhost:8000/health
+```
+
+## Run tests
+```bash
+python -m pytest -q            # trains a small model into a temp dir, hits the API
+```
+
+## Deploy to AWS
+Builds the image, pushes to ECR, and provisions an ALB + Auto Scaling Group via
+CloudFormation:
+```bash
+export VPC_ID=vpc-0abc123
+export SUBNET_IDS=subnet-aaa,subnet-bbb     # 2+ public subnets, different AZs
+./deploy/deploy.sh
+```
+The script prints the public `ApiUrl`. Optionally deploy CloudWatch alarms +
+dashboard with `deploy/monitoring.yaml`, passing the `*FullName` stack outputs.
+
+### Configuration
+All settings are environment variables prefixed `FDP_` (see `.env.example`):
+`FDP_LOG_LEVEL`, `FDP_DECISION_THRESHOLD`, `FDP_MODEL_PATH`, `FDP_METRICS_PATH`.
+
+## Project layout
+```
+app/      FastAPI service (config, schemas, model, main)
+ml/       data loader + XGBoost training pipeline
+deploy/   CloudFormation (ALB + ASG), monitoring, deploy.sh
+tests/    API tests
+constants.py / utils.py   shared schema + helpers
+Dockerfile / docker-compose.yml / Makefile
+```
+
+## License
+MIT — see [LICENSE](LICENSE).

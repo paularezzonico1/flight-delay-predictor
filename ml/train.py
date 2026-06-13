@@ -64,3 +64,22 @@ def build_pipeline(scale_pos_weight: float) -> Pipeline:
     )
     clf = XGBClassifier(scale_pos_weight=scale_pos_weight, **DEFAULT_PARAMS)
     return Pipeline([("preprocess", preprocess), ("clf", clf)])
+
+
+def tune(X_train, y_train) -> dict:
+    """Optional RandomizedSearchCV over key XGBoost params (set TUNE=1)."""
+    from sklearn.model_selection import RandomizedSearchCV
+
+    search_space = {
+        "clf__max_depth": [4, 6, 8],
+        "clf__n_estimators": [200, 300, 400],
+        "clf__learning_rate": [0.05, 0.1, 0.2],
+        "clf__subsample": [0.8, 0.9, 1.0],
+    }
+    base = build_pipeline(scale_pos_weight=1.0)
+    search = RandomizedSearchCV(
+        base, search_space, n_iter=8, scoring="roc_auc", cv=3, n_jobs=-1, random_state=42
+    )
+    search.fit(X_train, y_train)
+    logger.info("Best params: %s (roc_auc=%.4f)", search.best_params_, search.best_score_)
+    return {k.replace("clf__", ""): v for k, v in search.best_params_.items()}

@@ -96,3 +96,4 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
     metrics["f1"] = round(f1_score(y_test, preds, zero_division=0), 4)
     metrics["roc_auc"] = round(roc_auc_score(y_test, proba), 4)
     metrics["pr_auc"] = round(average_precision_score(y_test, proba), 4)
+    metrics["brier_score"] = round(brier_score_loss(y_test, proba), 4)

@@ -5,3 +5,74 @@ late, served as a low-latency REST API.
 
 <!-- Detailed architecture, metrics, API reference, and run instructions are
      filled in below. -->
+
+## Architecture
+
+```
+                         Internet
+                            │  HTTP :80
+                            ▼
+              ┌──────────────────────────────┐
+              │  Application Load Balancer    │  health checks → /health
+              │  (target-tracking listener)   │
+              └──────────────┬───────────────┘
+                             │  :8000
+              ┌──────────────┴───────────────┐
+              │      Auto Scaling Group       │  scales on CPU 50% +
+              │   (2–6 EC2, rolling updates)  │  1000 req/target
+              │                               │
+              │   ┌───────────────────────┐   │
+              │   │  Docker container      │   │
+              │   │  uvicorn + FastAPI     │   │
+              │   │   /predict /health     │   │
+              │   │   /stats   /docs       │   │
+              │   │        │               │   │
+              │   │   XGBoost Pipeline     │   │  loaded once at startup
+              │   │   (model.pkl)          │   │  (warm, in-process)
+              │   └───────────────────────┘   │
+              └──────────────┬───────────────┘
+                             │ logs/metrics
+                             ▼
+                  CloudWatch Logs + Alarms + Dashboard
+
+Build/train flow:  BTS CSV (or synthetic) → ml/train.py → model.pkl + metrics.json
+                   baked into the Docker image at build time.
+```
+
+## Components
+- **`ml/`** — dataset loader (`generate_data.py`) and training pipeline
+  (`train.py`) producing `models/model.pkl` + `models/metrics.json`.
+- **`app/`** — FastAPI service: `config.py` (settings + JSON logging),
+  `schemas.py` (validation), `model.py` (inference singleton), `main.py` (routes,
+  middleware, error handling).
+- **`deploy/`** — `cloudformation.yaml` (ALB + ASG), `monitoring.yaml`
+  (CloudWatch), `deploy.sh` (build → ECR → CloudFormation).
+
+## API
+
+Interactive docs at `/docs` (Swagger) and `/redoc`.
+
+### `POST /predict`
+Request:
+```json
+{ "airline": "B6", "origin": "JFK", "destination": "SFO",
+  "month": 7, "day_of_week": 5, "dep_hour": 18 }
+```
+Response:
+```json
+{ "delay_probability": 0.42, "will_be_delayed": false, "threshold": 0.5,
+  "risk_level": "moderate", "model_version": "2026-...", "latency_ms": 1.8,
+  "warnings": [] }
+```
+Field rules: `month` 1–12, `day_of_week` 1–7 (Mon–Sun), `dep_hour` 0–23;
+airline/origin/destination are IATA codes (case-insensitive); origin ≠ destination.
+Invalid input → `422` with field-level detail. Unknown codes are accepted with a
+`warnings` entry. Model not yet loaded → `503`.
+
+### `GET /health`
+Returns `200` with `{"status":"ok","model_loaded":true}` when ready, else `503`
+(`degraded`). Used as the ALB and container health check.
+
+### `GET /stats`
+Model metadata and offline metrics (accuracy, precision, recall, F1, ROC-AUC,
+PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.

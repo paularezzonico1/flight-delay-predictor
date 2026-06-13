@@ -50,3 +50,16 @@ class DelayModel:
     @property
     def version(self) -> str:
         return self._metadata.get("trained_at", "unknown")
+
+    def _validate_known(self, flight: FlightRequest) -> list[str]:
+        """Warn (don't reject) on unseen categories — OneHotEncoder ignores them."""
+        warnings: list[str] = []
+        airlines = set(self._metadata.get("known_airlines", []))
+        airports = set(self._metadata.get("known_airports", []))
+        if airlines and flight.airline not in airlines:
+            warnings.append(f"Unknown airline '{flight.airline}'; prediction may be unreliable.")
+        if airports and flight.origin not in airports:
+            warnings.append(f"Unknown origin '{flight.origin}'; prediction may be unreliable.")
+        if airports and flight.destination not in airports:
+            warnings.append(f"Unknown destination '{flight.destination}'; prediction may be unreliable.")
+        return warnings

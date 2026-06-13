@@ -85,3 +85,17 @@ async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
         status_code=503,
         content={"detail": "Model not loaded; service unavailable.", "request_id": request_id},
     )
+
+
+@app.get("/health", response_model=HealthResponse, tags=["ops"])
+async def health():
+    """Liveness/readiness probe. Returns 200 only when the model is loaded."""
+    loaded = model.loaded
+    return JSONResponse(
+        status_code=200 if loaded else 503,
+        content=HealthResponse(
+            status="ok" if loaded else "degraded",
+            version=settings.version,
+            model_loaded=loaded,
+        ).model_dump(),
+    )

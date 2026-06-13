@@ -26,3 +26,10 @@ logger = logging.getLogger(__name__)
 def _hour_effect(hour: int) -> float:
     """Delays build through the day; early morning is cleanest."""
     return float(np.clip((hour - 5) * 0.012, 0.0, 0.18))
+
+
+def _month_effect(month: int) -> float:
+    """Summer convective season (Jun-Aug) and December winter ops are worst."""
+    summer = 0.06 if month in (6, 7, 8) else 0.0
+    winter = 0.05 if month == 12 else 0.0
+    return summer + winter

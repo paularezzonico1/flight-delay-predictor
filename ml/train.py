@@ -105,3 +105,12 @@ def evaluate(pipe: Pipeline, X_test, y_test) -> dict:
         pipe.predict_proba(sample)
     metrics["single_predict_latency_ms"] = round((time.perf_counter() - t0) / 100 * 1000, 3)
     return metrics
+
+
+def feature_importance(pipe: Pipeline, top_n: int = 15) -> list:
+    """Return the most influential one-hot features by XGBoost gain."""
+    ohe = pipe.named_steps["preprocess"].named_transformers_["cat"]
+    names = ohe.get_feature_names_out(CATEGORICAL).tolist() + NUMERIC
+    importances = pipe.named_steps["clf"].feature_importances_
+    ranked = sorted(zip(names, importances), key=lambda t: t[1], reverse=True)
+    return [{"feature": n, "importance": round(float(i), 5)} for n, i in ranked[:top_n]]

@@ -7,6 +7,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -75,7 +76,12 @@ async def access_log(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
     request_id = getattr(request.state, "request_id", None)
-    return JSONResponse(status_code=422, content={"detail": exc.errors(), "request_id": request_id})
+    # jsonable_encoder coerces non-serializable error context (e.g. a ValueError
+    # raised inside a custom validator) so JSONResponse can render it.
+    return JSONResponse(
+        status_code=422,
+        content=jsonable_encoder({"detail": exc.errors(), "request_id": request_id}),
+    )
 
 
 @app.exception_handler(ModelNotLoadedError)

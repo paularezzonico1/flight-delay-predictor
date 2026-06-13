@@ -70,3 +70,18 @@ async def access_log(request: Request, call_next):
                "latency_ms": round(latency_ms, 2)},
     )
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(status_code=422, content={"detail": exc.errors(), "request_id": request_id})
+
+
+@app.exception_handler(ModelNotLoadedError)
+async def model_not_loaded_handler(request: Request, exc: ModelNotLoadedError):
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Model not loaded; service unavailable.", "request_id": request_id},
+    )

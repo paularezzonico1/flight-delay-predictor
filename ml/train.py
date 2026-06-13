@@ -160,3 +160,4 @@ def main() -> None:
         "metrics": metrics,
         "top_features": feature_importance(pipe),
     }
+    save_artifacts(pipe, metadata)

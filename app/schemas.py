@@ -40,6 +40,9 @@ class FlightRequest(BaseModel):
 
 
 class PredictionResponse(BaseModel):
+    # `model_version` collides with pydantic's protected `model_` namespace.
+    model_config = {"protected_namespaces": ()}
+
     delay_probability: float = Field(..., description="P(departure delay > 15 min), 0-1")
     will_be_delayed: bool
     threshold: float
@@ -50,12 +53,16 @@ class PredictionResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     status: str
     version: str
     model_loaded: bool
 
 
 class StatsResponse(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     model_type: str
     target: str
     features: list[str]

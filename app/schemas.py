@@ -65,3 +65,8 @@ class StatsResponse(BaseModel):
     metrics: dict
     known_airlines: list[str] = Field(default_factory=list)
     known_airports: list[str] = Field(default_factory=list)
+
+
+class ErrorResponse(BaseModel):
+    detail: str
+    request_id: Optional[str] = None

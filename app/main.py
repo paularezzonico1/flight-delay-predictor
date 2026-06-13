@@ -21,3 +21,14 @@ from app.schemas import (
 
 configure_logging()
 logger = logging.getLogger("app")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the model once at startup so every request hits a warm pipeline.
+    try:
+        model.load()
+    except FileNotFoundError as exc:
+        # Don't crash — /health reports not-ready so the LB drains this instance.
+        logger.error("Startup: %s", exc)
+    yield

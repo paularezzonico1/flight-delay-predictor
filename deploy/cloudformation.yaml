@@ -160,3 +160,13 @@ Resources:
       HealthCheckGracePeriod: 90
       Tags:
         - { Key: Name, Value: fdp-api, PropagateAtLaunch: true }
+
+  CpuScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 50.0

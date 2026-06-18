@@ -17,36 +17,56 @@ late, served as a low-latency REST API.
               │  (target-tracking listener)   │
               └──────────────┬───────────────┘
                              │  :8000
-              ┌──────────────┴───────────────┐
-              │      Auto Scaling Group       │  scales on CPU 50% +
-              │   (2–6 EC2, rolling updates)  │  1000 req/target
-              │                               │
-              │   ┌───────────────────────┐   │
-              │   │  Docker container      │   │
-              │   │  uvicorn + FastAPI     │   │
-              │   │   /predict /health     │   │
-              │   │   /stats   /docs       │   │
-              │   │        │               │   │
-              │   │   XGBoost Pipeline     │   │  loaded once at startup
-              │   │   (model.pkl)          │   │  (warm, in-process)
-              │   └───────────────────────┘   │
-              └──────────────┬───────────────┘
-                             │ logs/metrics
-                             ▼
-                  CloudWatch Logs + Alarms + Dashboard
+              ┌──────────────┴────────────────────┐
+              │        Auto Scaling Group          │  scales on CPU 50% +
+              │     (2–6 EC2, rolling updates)     │  1000 req/target
+              │                                    │
+              │   ┌────────────────────────────┐   │
+              │   │  uvicorn + FastAPI          │   │
+              │   │   /predict /health /stats   │   │
+              │   │        │         ▲          │   │
+              │   │   ModelService   │ cache    │   │  Strategy pattern:
+              │   │   (Strategy)     ▼          │   │  XGBoost or fallback
+              │   │   XGBoost Pipeline          │   │  (loaded once, warm)
+              │   └───┬──────────────┬──────────┘   │
+              │       │ Repository   │ cache get/set │
+              │       │ (SQL)        ▼               │
+              │       │        ┌──────────┐          │  Redis container ON the
+              │       │        │  Redis   │          │  instance (not ElastiCache)
+              │       │        └──────────┘          │
+              └───────┼────────────────────────────┘
+                      │ log every prediction        │ logs + custom metrics
+                      ▼                              ▼
+              ┌──────────────┐            CloudWatch Logs + Alarms +
+              │ RDS Postgres │            Dashboard (SNS notifications)
+              │ (public sub, │
+              │  SG-locked)  │  indexed on (route, carrier)
+              └──────────────┘
 
 Build/train flow:  BTS CSV (or synthetic) → ml/train.py → model.pkl + metrics.json
                    baked into the Docker image at build time.
+Infra:  modular Terraform (remote state in S3 + DynamoDB lock); CI/CD via GitHub
+        Actions (test → build → ECR → ASG instance refresh behind health checks).
 ```
 
 ## Components
 - **`ml/`** — dataset loader (`generate_data.py`) and training pipeline
   (`train.py`) producing `models/model.pkl` + `models/metrics.json`.
-- **`app/`** — FastAPI service: `config.py` (settings + JSON logging),
-  `schemas.py` (validation), `model.py` (inference singleton), `main.py` (routes,
-  middleware, error handling).
-- **`deploy/`** — `cloudformation.yaml` (ALB + ASG), `monitoring.yaml`
-  (CloudWatch), `deploy.sh` (build → ECR → CloudFormation).
+- **`app/`** — FastAPI service:
+  - `config.py` (settings + JSON logging), `schemas.py` (validation),
+    `main.py` (routes, middleware, error handling).
+  - `strategies/` — **Strategy pattern** around the model (XGBoost + fallback).
+  - `services/model_service.py` — picks and drives the active strategy.
+  - `repositories/` — **Repository pattern** wrapping all RDS access.
+  - `db/` — SQLAlchemy engine + `PredictionLog` ORM model.
+  - `cache/` — Redis cache (with a null fallback) for repeat lookups.
+  - `metrics.py` — CloudWatch custom-metrics emitter.
+- **`migrations/`** — raw-SQL schema migrations (table + the `(route, carrier)` index).
+- **`infra/terraform/`** — modular Terraform: `bootstrap/` (S3/DynamoDB remote
+  state) and `modules/` (`network`, `rds`, `compute`, `monitoring`).
+- **`.github/workflows/`** — `ci.yml` (test) and `cd.yml` (build → ECR → ASG rollout).
+- **`loadtest/`** — Locust burst load test.
+- **`deploy/`** — legacy CloudFormation, **superseded by `infra/terraform/`**.
 
 ## API
 

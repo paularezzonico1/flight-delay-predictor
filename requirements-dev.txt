@@ -1,0 +1,5 @@
+# Developer / load-testing extras. Not installed in the runtime image.
+-r requirements.txt
+
+# Load testing
+locust==2.29.1

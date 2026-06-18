@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
+# Deps are installed under --prefix=/install (so the runtime stage can copy them
+# to /usr/local); make them importable for the build-time training step below.
+ENV PYTHONPATH=/install/lib/python3.11/site-packages
+
 COPY constants.py utils.py ./
 COPY ml/ ./ml/
 # Train at build time so the image ships ready-to-serve. Mount a real BTS CSV

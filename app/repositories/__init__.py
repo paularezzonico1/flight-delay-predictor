@@ -10,8 +10,10 @@ from app.repositories.base import (
     AbstractPredictionRepository,
     PredictionRecord,
 )
+from app.repositories.null_repository import NullPredictionRepository
 
 __all__ = [
     "AbstractPredictionRepository",
     "PredictionRecord",
+    "NullPredictionRepository",
 ]

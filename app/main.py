@@ -11,8 +11,13 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.cache import build_cache
+from app.cache.base import cache_key
 from app.config import configure_logging, settings
+from app.metrics import metrics
 from app.model import ModelNotLoadedError, model
+from app.repositories import PredictionRecord
+from app.repositories.factory import build_repository
 from app.schemas import (
     FlightRequest,
     HealthResponse,
@@ -27,12 +32,15 @@ logger = logging.getLogger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Load the model once at startup so every request hits a warm pipeline.
-    try:
-        model.load()
-    except FileNotFoundError as exc:
-        # Don't crash — /health reports not-ready so the LB drains this instance.
-        logger.error("Startup: %s", exc)
+    # ModelService falls back to the heuristic strategy if the artifact is
+    # missing, so this no longer crashes on a cold image.
+    model.load()
+    # Repository and cache pick concrete vs no-op backends from configuration,
+    # so the service runs identically with or without RDS/Redis.
+    app.state.repo = build_repository()
+    app.state.cache = build_cache()
     yield
+    metrics.flush()
 
 
 app = FastAPI(
@@ -126,10 +134,74 @@ async def stats():
     )
 
 
+def _log_prediction(repo, request_id, flight: FlightRequest, route: str, payload: dict) -> None:
+    """Persist a served prediction via the repository (no-op without a DB)."""
+    repo.log_prediction(
+        PredictionRecord(
+            request_id=request_id,
+            carrier=flight.airline,
+            origin=flight.origin,
+            destination=flight.destination,
+            route=route,
+            month=flight.month,
+            day_of_week=flight.day_of_week,
+            dep_hour=flight.dep_hour,
+            delay_probability=payload["delay_probability"],
+            will_be_delayed=payload["will_be_delayed"],
+            risk_level=payload["risk_level"],
+            model_version=payload["model_version"],
+            latency_ms=payload["latency_ms"],
+            cache_hit=payload["cache_hit"],
+        )
+    )
+
+
 @app.post("/predict", response_model=PredictionResponse, tags=["inference"])
-async def predict(flight: FlightRequest):
-    """Return the delay probability for a single flight."""
-    return PredictionResponse(**model.predict(flight))
+async def predict(flight: FlightRequest, request: Request):
+    """Return the delay probability for a single flight.
+
+    Repeat (route, carrier, time-of-day) requests are served from the Redis
+    cache, skipping model inference. Every request — hit or miss — is logged to
+    RDS for audit, tagged with whether it was a cache hit.
+    """
+    repo = request.app.state.repo
+    cache = request.app.state.cache
+    request_id = getattr(request.state, "request_id", None)
+    route = f"{flight.origin}-{flight.destination}"
+    key = cache_key(route, flight.airline, flight.dep_hour)
+
+    cached = cache.get(key)
+    if cached is not None:
+        cached["cache_hit"] = True
+        _log_prediction(repo, request_id, flight, route, cached)
+        metrics.record_prediction(cached["latency_ms"], True, model.active_strategy)
+        return PredictionResponse(**cached)
+
+    payload = model.predict(flight)
+    cache.set(key, payload)
+    _log_prediction(repo, request_id, flight, route, payload)
+    metrics.record_prediction(payload["latency_ms"], False, model.active_strategy)
+    return PredictionResponse(**payload)
+
+
+@app.get("/predictions/recent", tags=["inference"])
+async def recent_prediction(
+    request: Request,
+    origin: str,
+    destination: str,
+    airline: str,
+    dep_hour: int,
+):
+    """Most recent stored prediction for a route/carrier/time-of-day.
+
+    Backed by the ``(route, carrier)`` index on the predictions table (see
+    migrations). Returns 404 when nothing has been logged yet (or no DB).
+    """
+    route = f"{origin.strip().upper()}-{destination.strip().upper()}"
+    hit = request.app.state.repo.find_recent(route, airline.strip().upper(), dep_hour)
+    if hit is None:
+        return JSONResponse(status_code=404, content={"detail": "No prior prediction found."})
+    return hit
 
 
 @app.get("/", tags=["ops"])

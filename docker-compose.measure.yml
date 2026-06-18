@@ -1,0 +1,56 @@
+# Local measurement stack: Postgres + Redis + the API, wired exactly like the
+# AWS deployment (API -> RDS for logging, API -> Redis for caching). Used to
+# capture the real numbers in METRICS.md.
+#
+# Bring up infra first, apply migrations + seed, then start the API:
+#   docker compose -f docker-compose.measure.yml up -d postgres redis
+#   docker exec -i fdp-pg psql -U fdp -d fdp < migrations/001_create_predictions.sql
+#   FDP_DATABASE_URL=postgresql+psycopg://fdp:fdp@localhost:5432/fdp \
+#     python -m scripts.seed_predictions --rows 200000
+#   docker compose -f docker-compose.measure.yml up -d --build api
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fdp-pg
+    environment:
+      POSTGRES_USER: fdp
+      POSTGRES_PASSWORD: fdp
+      POSTGRES_DB: fdp
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fdp-redis
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    image: flight-delay-predictor:latest
+    container_name: fdp-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FDP_LOG_LEVEL: INFO
+      FDP_DATABASE_URL: postgresql+psycopg://fdp:fdp@postgres:5432/fdp
+      FDP_REDIS_URL: redis://redis:6379/0
+      FDP_CACHE_TTL_SECONDS: "300"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

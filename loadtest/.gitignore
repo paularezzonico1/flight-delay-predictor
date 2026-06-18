@@ -1,0 +1,6 @@
+# Locust run artifacts. report_stats.csv is kept as the evidence behind
+# METRICS.md; the rest regenerate on every run.
+run.log
+report_stats_history.csv
+report_failures.csv
+report_exceptions.csv

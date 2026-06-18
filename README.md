@@ -202,40 +202,77 @@ curl -X POST localhost:8000/predict -H 'content-type: application/json' \
 ```
 Or use the Makefile: `make install && make train && make run`.
 
-### With Docker
+### With Docker (API only)
 ```bash
 docker compose up --build      # trains the model during the image build
 curl localhost:8000/health
 ```
 
+### Full local stack (API + Postgres + Redis)
+Mirrors the AWS wiring — used to capture the numbers in [METRICS.md](METRICS.md):
+```bash
+docker compose -f docker-compose.measure.yml up -d postgres redis
+docker exec -i fdp-pg psql -U fdp -d fdp < migrations/001_create_predictions.sql
+docker exec -i fdp-pg psql -U fdp -d fdp < migrations/002_add_route_carrier_index.sql
+docker compose -f docker-compose.measure.yml up -d --build api
+curl localhost:8000/health
+```
+Without `FDP_DATABASE_URL` / `FDP_REDIS_URL`, the service runs identically but
+skips logging and caching (null backends).
+
 ## Run tests
 ```bash
-python -m pytest -q            # trains a small model into a temp dir, hits the API
+python -m pytest -q            # offline: null DB/cache backends, no infra needed
 ```
 
-## Deploy to AWS
-Builds the image, pushes to ECR, and provisions an ALB + Auto Scaling Group via
-CloudFormation:
+## Deploy to AWS (Terraform)
+Infrastructure is modular Terraform with remote state in S3 + DynamoDB locking.
+**Review the plan before applying.**
 ```bash
-export VPC_ID=vpc-0abc123
-export SUBNET_IDS=subnet-aaa,subnet-bbb     # 2+ public subnets, different AZs
-./deploy/deploy.sh
+# 1. One-time: create the remote-state bucket + lock table
+cd infra/terraform/bootstrap
+terraform init && terraform apply -var state_bucket_name=<unique-bucket>
+
+# 2. Main stack
+cd ..
+terraform init \
+  -backend-config="bucket=<unique-bucket>" \
+  -backend-config="key=flight-delay-predictor/terraform.tfstate" \
+  -backend-config="region=us-east-1" \
+  -backend-config="dynamodb_table=fdp-terraform-locks"
+export TF_VAR_db_password=...           # never commit secrets
+terraform plan -var image_uri=<ecr-image-uri>     # review first
+terraform apply -var image_uri=<ecr-image-uri>
+terraform output api_url
 ```
-The script prints the public `ApiUrl`. Optionally deploy CloudWatch alarms +
-dashboard with `deploy/monitoring.yaml`, passing the `*FullName` stack outputs.
+CI/CD (GitHub Actions, `.github/workflows/cd.yml`) builds and pushes the image to
+ECR and rolls the ASG via a health-gated instance refresh. The legacy
+CloudFormation under `deploy/` is superseded by this.
 
 ### Configuration
 All settings are environment variables prefixed `FDP_` (see `.env.example`):
-`FDP_LOG_LEVEL`, `FDP_DECISION_THRESHOLD`, `FDP_MODEL_PATH`, `FDP_METRICS_PATH`.
+`FDP_LOG_LEVEL`, `FDP_DECISION_THRESHOLD`, `FDP_MODEL_PATH`, `FDP_METRICS_PATH`,
+`FDP_DATABASE_URL`, `FDP_REDIS_URL`, `FDP_CACHE_TTL_SECONDS`,
+`FDP_CLOUDWATCH_NAMESPACE`, `FDP_AWS_REGION`.
 
 ## Project layout
 ```
-app/      FastAPI service (config, schemas, model, main)
-ml/       data loader + XGBoost training pipeline
-deploy/   CloudFormation (ALB + ASG), monitoring, deploy.sh
-tests/    API tests
+app/                FastAPI service
+  strategies/       Strategy pattern (XGBoost + fallback) + ModelService
+  repositories/     Repository pattern over RDS
+  db/ cache/        SQLAlchemy ORM/engine + Redis cache
+  metrics.py        CloudWatch custom metrics
+ml/                 data loader + XGBoost training pipeline
+migrations/         raw-SQL schema migrations (table + route/carrier index)
+infra/terraform/    modular Terraform (bootstrap + network/rds/compute/monitoring)
+.github/workflows/  CI (test) and CD (build → ECR → ASG rollout)
+loadtest/           Locust burst load test
+scripts/            predictions seed script
+deploy/             legacy CloudFormation (superseded by Terraform)
+tests/              API + strategy + cache/repo tests
+METRICS.md          measured numbers + the command behind each
 constants.py / utils.py   shared schema + helpers
-Dockerfile / docker-compose.yml / Makefile
+Dockerfile / docker-compose.yml / docker-compose.measure.yml / Makefile
 ```
 
 ## License

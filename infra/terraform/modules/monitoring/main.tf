@@ -47,10 +47,10 @@ resource "aws_cloudwatch_metric_alarm" "high_latency" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
-  alarm_name          = "${var.name}-unhealthy-hosts"
-  alarm_description   = "One or more targets failing health checks."
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "UnHealthyHostCount"
+  alarm_name        = "${var.name}-unhealthy-hosts"
+  alarm_description = "One or more targets failing health checks."
+  namespace         = "AWS/ApplicationELB"
+  metric_name       = "UnHealthyHostCount"
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
     TargetGroup  = var.target_group_arn_suffix

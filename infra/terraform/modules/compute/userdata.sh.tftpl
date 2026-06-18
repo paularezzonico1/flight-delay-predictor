@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+
+# Bootstrap an app instance: install Docker, then run Redis and the API as
+# containers on a shared user-defined network. Redis runs ON THE INSTANCE (not
+# ElastiCache) to avoid a managed-cache monthly bill; it caches repeat
+# route/carrier/time-of-day lookups and is reachable by the API at redis://redis.
+
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+
+REGION="${region}"
+IMAGE="${image_uri}"
+REGISTRY="$(echo "$IMAGE" | cut -d/ -f1)"
+
+aws ecr get-login-password --region "$REGION" \
+  | docker login --username AWS --password-stdin "$REGISTRY"
+
+# Shared network so the API can reach Redis by container name.
+docker network create fdp || true
+
+# Redis cache (instance-local; data is disposable, so no persistence needed).
+docker run -d --restart always --name redis --network fdp \
+  redis:7-alpine --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+docker pull "$IMAGE"
+
+# API container. DB/Redis/CloudWatch wiring is injected via FDP_ env vars; the
+# app degrades gracefully if any are blank.
+docker run -d --restart always --name fdp --network fdp \
+  -p 8000:8000 \
+  -e FDP_LOG_LEVEL=INFO \
+  -e FDP_DATABASE_URL="${database_url}" \
+  -e FDP_REDIS_URL="redis://redis:6379/0" \
+  -e FDP_CLOUDWATCH_NAMESPACE="${cloudwatch_namespace}" \
+  -e FDP_AWS_REGION="$REGION" \
+  --log-driver=awslogs \
+  --log-opt awslogs-region="$REGION" \
+  --log-opt awslogs-group=/fdp/api \
+  --log-opt awslogs-create-group=true \
+  "$IMAGE"

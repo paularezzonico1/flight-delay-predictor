@@ -49,6 +49,7 @@ class PredictionResponse(BaseModel):
     risk_level: str = Field(..., description="low | moderate | high")
     model_version: str
     latency_ms: float
+    cache_hit: bool = Field(default=False, description="True when served from the Redis cache")
     warnings: list[str] = Field(default_factory=list)
 
 

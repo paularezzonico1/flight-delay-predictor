@@ -20,6 +20,24 @@ class Settings(BaseSettings):
     # Probability >= this is reported as `will_be_delayed: true`.
     decision_threshold: float = 0.5
 
+    # --- Persistence (RDS Postgres) ---------------------------------------
+    # SQLAlchemy URL, e.g. postgresql+psycopg://user:pass@host:5432/fdp.
+    # When empty, prediction logging is disabled (a NullPredictionRepository
+    # is used) so the service runs identically offline and in CI.
+    database_url: str = ""
+    db_pool_size: int = 5
+    db_pool_max_overflow: int = 5
+
+    # --- Cache (Redis) ----------------------------------------------------
+    # e.g. redis://localhost:6379/0. Empty disables caching (NullCache).
+    redis_url: str = ""
+    cache_ttl_seconds: int = 300
+
+    # --- Observability (CloudWatch custom metrics) ------------------------
+    # Empty namespace disables metric publishing (no-op without AWS creds).
+    cloudwatch_namespace: str = ""
+    aws_region: str = "us-east-1"
+
 
 settings = Settings()
 

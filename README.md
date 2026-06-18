@@ -144,13 +144,25 @@ PR-AUC, Brier score, single-prediction latency), plus known airlines/airports.
 ## Performance
 
 - **Latency:** the XGBoost pipeline is loaded once at process start and served
-  warm and in-process. Single-prediction latency is ~1–3 ms locally
-  (`metrics.single_predict_latency_ms` in `GET /stats`), comfortably inside the
-  sub-100 ms response-time target end-to-end. Each response carries an
-  `x-process-time-ms` header for observability.
+  warm and in-process. Each response carries an `x-process-time-ms` header and a
+  `latency_ms` field for observability.
 - **Throughput / scaling:** two uvicorn workers per container; the ASG adds
   instances on average CPU > 50% or > 1000 requests/target.
-- **Model quality:** trained on **real US DOT / BTS On-Time Performance data for
+- **Caching & persistence:** repeat `route/carrier/time-of-day` requests are
+  served from Redis (skipping inference); every request is logged to RDS, whose
+  `(route, carrier)` index accelerates the lookup query.
+
+### Measured system performance
+
+The index speedup, real cache hit rate, write throughput, and load-test p99
+latency are **measured, not estimated** — each captured from the tool that
+produced it (Postgres `EXPLAIN ANALYZE`, `redis-cli INFO stats`, a `COUNT` over
+the load-test window, and Locust's own report). See **[METRICS.md](METRICS.md)**
+for the numbers and the exact command behind each one.
+
+### Model quality
+
+- Trained on **real US DOT / BTS On-Time Performance data for
   January 2023** — 528,542 flights, 21.1% departure-delay rate. Held-out 20%
   test split (metrics also served live at `GET /stats`):
 

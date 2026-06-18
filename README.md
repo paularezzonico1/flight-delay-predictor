@@ -68,6 +68,50 @@ Infra:  modular Terraform (remote state in S3 + DynamoDB lock); CI/CD via GitHub
 - **`loadtest/`** — Locust burst load test.
 - **`deploy/`** — legacy CloudFormation, **superseded by `infra/terraform/`**.
 
+## Design patterns
+
+Two patterns keep the serving code decoupled from its dependencies:
+
+- **Repository pattern** (`app/repositories/`) — wraps *all* RDS access behind
+  `AbstractPredictionRepository`. The routes, services, and cache never build SQL
+  or touch a SQLAlchemy session; they call `log_prediction()`, `find_recent()`,
+  and `count_in_window()`. This decouples the service from the persistence layer:
+  the same call sites work against Postgres (`SqlPredictionRepository`) or a no-op
+  backend (`NullPredictionRepository`, used when no database is configured, e.g.
+  in CI and local tests). Swapping or mocking storage touches one class.
+
+- **Strategy pattern** (`app/strategies/`) — puts the model behind
+  `PredictionStrategy` so the *active* model can be swapped without changing any
+  caller. `ModelService` loads the production `XGBoostStrategy` and transparently
+  falls back to a `FallbackStrategy` (a base-rate heuristic) when the model
+  artifact is missing or fails to load — so a cold image degrades instead of
+  returning 503s. Adding a new model is a new strategy class; the API code is
+  untouched.
+
+## Cost vs. best-practice tradeoffs
+
+This is a portfolio/demo project, so two deliberate choices trade textbook best
+practice for materially lower ongoing cost. Both are safe-by-design here but
+would be revisited for production:
+
+- **RDS in a public subnet, no NAT Gateway.** Best practice is to put RDS in a
+  private subnet and give instances egress via a NAT Gateway — but a NAT Gateway
+  costs ~$32/mo plus data processing, which is disproportionate for a demo.
+  Instead the database lives in a public subnet with `publicly_accessible = true`
+  and is locked down at the **security-group** layer: the RDS SG accepts `:5432`
+  *only* from the app-instance SG, so there is no network path from the internet
+  to the database port. The network ACL still allows the subnet to route, but the
+  SG is the actual control. See `infra/terraform/modules/network/main.tf`.
+  *Production:* private subnets + NAT (or VPC endpoints) and `publicly_accessible = false`.
+
+- **Redis as a container on the EC2 instance, not ElastiCache.** Managed
+  ElastiCache adds a standing monthly bill; for a demo whose cache is disposable
+  (it only memoises repeat `route/carrier/time-of-day` lookups) a `redis:7-alpine`
+  container co-located on each instance is enough. It is started by the launch
+  template's user data with an LRU eviction policy and bound to the instance.
+  *Production:* a managed, replicated ElastiCache cluster for durability and a
+  shared cache across instances.
+
 ## API
 
 Interactive docs at `/docs` (Swagger) and `/redoc`.

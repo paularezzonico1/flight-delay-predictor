@@ -59,3 +59,44 @@ jobs:
         run: |
           docker build --platform linux/amd64 -t "${{ steps.image.outputs.uri }}" .
           docker push "${{ steps.image.outputs.uri }}"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # The ASG launch template references the ECR repo with a moving tag; a
+      # rolling instance refresh re-pulls the new image. New instances must pass
+      # the ALB /health check before old ones are terminated.
+      - name: Start ASG instance refresh
+        id: refresh
+        run: |
+          REFRESH_ID=$(aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "${{ vars.ASG_NAME }}" \
+            --preferences MinHealthyPercentage=50,InstanceWarmup=90 \
+            --query InstanceRefreshId --output text)
+          echo "id=$REFRESH_ID" >> "$GITHUB_OUTPUT"
+          echo "Started instance refresh $REFRESH_ID"
+
+      - name: Wait for rollout to complete
+        run: |
+          ASG="${{ vars.ASG_NAME }}"
+          ID="${{ steps.refresh.outputs.id }}"
+          for _ in $(seq 1 60); do
+            STATUS=$(aws autoscaling describe-instance-refreshes \
+              --auto-scaling-group-name "$ASG" \
+              --instance-refresh-ids "$ID" \
+              --query "InstanceRefreshes[0].Status" --output text)
+            echo "Refresh status: $STATUS"
+            case "$STATUS" in
+              Successful) exit 0 ;;
+              Failed|Cancelled) echo "Rollout $STATUS"; exit 1 ;;
+            esac
+            sleep 30
+          done
+          echo "Timed out waiting for rollout"; exit 1

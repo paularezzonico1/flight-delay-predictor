@@ -11,9 +11,11 @@ from app.repositories.base import (
     PredictionRecord,
 )
 from app.repositories.null_repository import NullPredictionRepository
+from app.repositories.prediction_repository import SqlPredictionRepository
 
 __all__ = [
     "AbstractPredictionRepository",
     "PredictionRecord",
     "NullPredictionRepository",
+    "SqlPredictionRepository",
 ]

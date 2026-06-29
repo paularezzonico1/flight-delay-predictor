@@ -66,7 +66,6 @@ Infra:  modular Terraform (remote state in S3 + DynamoDB lock); CI/CD via GitHub
   state) and `modules/` (`network`, `rds`, `compute`, `monitoring`).
 - **`.github/workflows/`** — `ci.yml` (test) and `cd.yml` (build → ECR → ASG rollout).
 - **`loadtest/`** — Locust burst load test.
-- **`deploy/`** — legacy CloudFormation, **superseded by `infra/terraform/`**.
 
 ## Design patterns
 
@@ -246,8 +245,7 @@ terraform apply -var image_uri=<ecr-image-uri>
 terraform output api_url
 ```
 CI/CD (GitHub Actions, `.github/workflows/cd.yml`) builds and pushes the image to
-ECR and rolls the ASG via a health-gated instance refresh. The legacy
-CloudFormation under `deploy/` is superseded by this.
+ECR and rolls the ASG via a health-gated instance refresh.
 
 ### Configuration
 All settings are environment variables prefixed `FDP_` (see `.env.example`):
@@ -268,7 +266,6 @@ infra/terraform/    modular Terraform (bootstrap + network/rds/compute/monitorin
 .github/workflows/  CI (test) and CD (build → ECR → ASG rollout)
 loadtest/           Locust burst load test
 scripts/            predictions seed script
-deploy/             legacy CloudFormation (superseded by Terraform)
 tests/              API + strategy + cache/repo tests
 METRICS.md          measured numbers + the command behind each
 constants.py / utils.py   shared schema + helpers
